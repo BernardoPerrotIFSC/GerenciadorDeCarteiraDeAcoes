@@ -1,0 +1,10 @@
+    # CHAMANDO A INSTANCIA
+    # def atualizarDividendos(self, usuario_id, valor_dividendos):
+    #     query = Carteira.query.filter_by(usuario_id=usuario_id).first()
+    #     if query.total_dividendos == 0:
+    #         self.total_dividendos = valor_dividendos
+    #     else:
+    #         query.total_dividendos += valor_dividendos
+    #     db.session.commit()
+
+    #INSTANCIA TEM QUE SER CHAMAMDA
