@@ -114,7 +114,33 @@ class CompraAcao(db.Model):
     valor_pago = db.Column(db.Float)
     descricao = db.String(db.String)
     data_compra = db.Column(db.Date)
-    
+    data_ultimo_dividendo = db.Column(db.Date)
+
+    def histDividends(self):
+        ativo = yf.Ticker(self.ticker+".SA")
+        dividend_info = ativo.dividends
+        data_compra_str = self.data_compra.strftime("%Y-%m-%d")
+        filtered_dividends = dividend_info[dividend_info.index >= data_compra_str]
+        filtered_dividends = filtered_dividends.iloc[::-1]
+
+        # count = 0
+
+        # for data, dividend in filtered_dividends.items():
+        #     index += 1
+        #     cash_yield = round((dividend / preco) * 100, 3)
+            
+        #     # Formata a data
+        #     data_organizada = data.strftime("%d/%m/%Y")
+            
+        #     # Exibe informações de cada dividendo
+        #     print(f'{index} - Dividendo: R$ {dividend}, Data: {data_organizada}, Yield no Preço atual: {cash_yield} %')
+        #     print('--------')
+            
+        #     # Acumula o total de dividendos
+        #     total = round(total + dividend, 4)
+
+
+
 
 
 admin.add_view(ModelView(Usuario, db.session))
