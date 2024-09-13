@@ -6,5 +6,4 @@
     #     else:
     #         query.total_dividendos += valor_dividendos
     #     db.session.commit()
-
     #INSTANCIA TEM QUE SER CHAMAMDA
