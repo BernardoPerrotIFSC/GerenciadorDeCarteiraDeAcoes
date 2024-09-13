@@ -7,3 +7,8 @@
     #         query.total_dividendos += valor_dividendos
     #     db.session.commit()
     #INSTANCIA TEM QUE SER CHAMAMDA
+
+                print(f'Valor Dividendo: R$ {dividendo}')
+            print(f'Data Dividendo: {data_div_organizada}')
+            print(f'Cotacao data Dividendo: R$ {cotacao_dividendo}')
+            print(f'CashYield: {cash_yield} %')

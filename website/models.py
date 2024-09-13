@@ -7,6 +7,7 @@ from . import admin
 from sqlalchemy import desc
 import yfinance as yf
 import datetime
+from .funcoes import dividendos
 
 
 class Usuario(db.Model, UserMixin):
@@ -17,6 +18,28 @@ class Usuario(db.Model, UserMixin):
     compra_acao = db.relationship('CompraAcao')
     acao = db.relationship('Acao')
     carteira = db.relationship('Carteira')
+
+    def addDividendos(self, ticker, quantidade, data):
+        ativo = yf.Ticker(ticker+".SA")
+        dividend_info = ativo.dividends
+        data_formatada = data.strftime("%Y-%m-%d")
+        filtered_dividends = dividend_info[dividend_info.index >= data_formatada]
+        count = -1
+        total_dividendos = 0
+        if not filtered_dividends.empty:
+            for i in filtered_dividends:
+                dividendo = round(dividend_info.iloc[count], 4)
+                total_dividendos = total_dividendos + dividendo
+                data_div = dividend_info.index[count]
+                data_div_organizada = data_div.strftime("%d-%m-%Y")
+                cotacao_dividendo = round(ativo.history(start=data, end=data)['Close'].iloc[0], 2)
+                cash_yield = round((dividendo/cotacao_dividendo)*100)
+                count = count - 1
+                valor = dividendo*quantidade
+                novo_dividendo = HistDividendos(usuario_id=self.id, ticker=ticker, quantidade=quantidade, valor_por_acao=dividendo, valor=valor, data=data_div_organizada, cash_yield=cash_yield)
+                db.session.add(novo_dividendo)
+                db.session.commit()
+
 
     def VerUsuario(usuario_id):
         return Usuario.query.filter_by(id=usuario_id).first()
@@ -67,12 +90,51 @@ class Usuario(db.Model, UserMixin):
             nova_compra = CompraAcao(ticker = ticker, preco_pago = preco_pago, quantidade = quantidade, valor_pago = valor_pago, data_compra = data_compra, usuario_id = self.id)
             acao = Acao(ticker = ticker, preco_medio = preco_pago, quantidade = quantidade, valor_pago = valor_pago, preco_atual = preco_atual, valor_atual= valor_atual,rentabilidade = rentabilidade, lucro_prejuizo=lucro_prejuizo, status = status, usuario_id = self.id)
             hist_acao = Historico(usuario_id = self.id, ticker=ticker, descricao=descricao, quantidade=quantidade, preco_pago = preco_pago, valor_pago = valor_pago, tipo = "compra", data = data_compra)
+            Usuario.addDividendos(ticker, quantidade, data_compra)
             db.session.add(hist_acao)
             db.session.add(acao)
             db.session.add(nova_compra)
             db.session.commit()
             flash(f"{ticker} adicionada a carteira", category='success')
             return redirect(url_for('views.add_acao'))
+
+    def atulizarCarteira(self):
+        acoes_query = Acao.query.filter_by(usuario_id=self.id)
+        carteira_query = Carteira.query.filter_by(usuario_id=self.id)
+        for acao in acoes_query:
+            ativo = yf.Ticker(acao.ticker+".SA")
+            acao.preco_atual = round(ativo.history(period='1d')['Close'].iloc[0], 2)
+            acao.valor_atual = round(acao.preco_atual*acao.quantidade, 2)
+            acao.lucro_prejuizo = round(acao.valor_atual-acao.valor_pago, 2)
+            acao.rentabilidade = round(acao.lucro_prejuizo/acao.valor_pago*100, 2)
+            if acao.rentabilidade > 0:
+                acao.status = "lucro"
+            elif acao.rentabilidade == 0:
+                acao.status = "zero"
+            else:
+                acao.status = "prejuizo"
+            acao.peso = round((acao.valor_atual/carteira_query.valor_atual_total)*100, 2)
+            db.session.commit()
+            print(f'Ação: {acao.ticker}, peso: {acao.peso}')
+        qry_sum = db.session.query(func.sum(Acao.valor_pago).label("valor_pago"),
+                        func.sum(Acao.valor_atual).label("preco_atual")).filter_by(usuario_id=self.id)
+        valores = qry_sum.first()
+        ValorPago = valores[0]
+        ValorAtual = valores[1]
+        carteira_query.valor_pago_total = round(ValorPago, 2)
+        carteira_query.valor_atual_total = round(ValorAtual, 2)
+        carteira_query.lucro_prejuizo = round(ValorAtual - ValorPago, 2)
+        carteira_query.rentabilidade_total = round(carteira_query.lucro_prejuizo/ValorPago*100, 2)
+        if carteira_query.rentabilidade_total > 0:
+            carteira_query.status = "lucro"
+        elif carteira_query.rentabilidade_total == 0:
+            carteira_query.status = "zero"
+        else:
+            carteira_query.status = "prejuizo"
+        db.session.commit()
+
+
+        
 
 class Carteira(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -153,7 +215,7 @@ class Acao(db.Model):
         db.session.commit()
         
     def removeAcaoCriaHist(self, preco_venda, quantidade, descricao, data_venda):
-        if preco_venda <=0:
+        if preco_venda <= 0:
             flash("Preço ou quantidade não foram encontradas", category='error')
         elif quantidade > self.quantidade:
             flash("Ação ou quantidade não foram encontradas", category='error')
@@ -223,12 +285,13 @@ class HistOperacoes(db.Model):
     
 class HistDividendos(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    usario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'))
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'))
     ticker = db.Column(db.String(10))
     quantidade = db.Column(db.Integer)
     valor_por_acao = db.Column(db.Float)
     valor = db.Column(db.Float)
     data = db.Column(db.Date)
+    cash_yield = db.Column(db.Float)
 
     
 
