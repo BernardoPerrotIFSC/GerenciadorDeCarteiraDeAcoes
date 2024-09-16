@@ -13,7 +13,7 @@ def home():
 @views.route('/carteira', methods=["GET","POST"])
 @login_required
 def carteira():
-    acoes = Acao.query.filter_by(usuario_id=current_user.id)
+    acoes = Acao.query.filter_by(usuario_id=current_user.id).order_by(desc(Acao.peso))
     carteira = Carteira.query.filter_by(usuario_id=current_user.id).first()
     return render_template("Carteira/carteira.html", usuario=current_user, acoes=acoes, carteira=carteira)
 
@@ -24,8 +24,7 @@ def add_acao():
         ticker = request.form.get('ticker')
         preco_pago = float(request.form.get('preco_pago'))
         quantidade = int(request.form.get('quantidade'))
-        data_compra_str = request.form.get('dataCompra')
+        data_compra_str = request.form.get('data_compra')
         descricao = request.form.get('descricao')
         Usuario.addAcao(current_user, ticker, preco_pago, quantidade, descricao, data_compra_str)
-
     return render_template("Carteira/add_acao.html", usuario=current_user)

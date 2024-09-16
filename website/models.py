@@ -18,6 +18,9 @@ class Usuario(db.Model, UserMixin):
     compra_acao = db.relationship('CompraAcao')
     acao = db.relationship('Acao')
     carteira = db.relationship('Carteira')
+    hist = db.relationship('Historico')
+    hist_oper = db.relationship('HistOperacoes')
+    hist_div = db.relationship('HistDividendos')
 
     def VerCarteira(self):
         return Carteira.query.filter_by(usuario_id=self.id).first()
@@ -80,6 +83,7 @@ class Usuario(db.Model, UserMixin):
             flash(f"Mais {quantidade} acoes foram adicionadas a {ticker}")
             return redirect(url_for('views.add_acao'))
         else:
+            data_compra = datetime.strptime(data_compra_str, '%Y-%m-%d')
             valor_pago = round(preco_pago*quantidade, 2)
             acao = yf.Ticker(ticker+".SA")
             preco_atual = round(acao.history(period='1d')['Close'].iloc[0], 2)
@@ -94,7 +98,7 @@ class Usuario(db.Model, UserMixin):
             else:
                 status = "prejuizo"
             nova_compra = CompraAcao(ticker = ticker, preco_pago = preco_pago, quantidade = quantidade, valor_pago = valor_pago, data_compra = data_compra, usuario_id = self.id)
-            acao = Acao(ticker = ticker, preco_medio = preco_pago, quantidade = quantidade, valor_pago = valor_pago, preco_atual = preco_atual, valor_atual= valor_atual,rentabilidade = rentabilidade, lucro_prejuizo=lucro_prejuizo, status = status, usuario_id = self.id)
+            acao = Acao(ticker = ticker, preco_medio = preco_pago, quantidade = quantidade, valor_pago = valor_pago, data_compra_inicial=data_compra, preco_atual = preco_atual, valor_atual= valor_atual,rentabilidade = rentabilidade, lucro_prejuizo=lucro_prejuizo, status = status, usuario_id = self.id)
             hist_acao = Historico(usuario_id = self.id, ticker=ticker, descricao=descricao, quantidade=quantidade, preco_pago = preco_pago, valor_pago = valor_pago, tipo = "compra", data = data_compra)
             # Usuario.addDividendos(ticker, quantidade, data_compra)
             db.session.add(hist_acao)
@@ -178,6 +182,7 @@ class Acao(db.Model):
     preco_medio = db.Column(db.Float)
     quantidade = db.Column(db.Integer)
     valor_pago = db.Column(db.Float)
+    data_compra_inicial = db.Column(db.Date)
     preco_atual = db.Column(db.Float)
     valor_atual = db.Column(db.Float)
     peso = db.Column(db.Float)
@@ -192,8 +197,6 @@ class Acao(db.Model):
     def verAcao(self, usuario_id):
         return Acao.query.filter_by(usuario_id=usuario_id).first()
     
-
-
     def atualizaAcao(self, valor_total_careira):
         ativo = yf.Ticker(self.ticker+".SA")
         self.preco_atual = round(ativo.history(period='1d')['Close'].iloc[0], 2)
