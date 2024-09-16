@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %} Carteira {% endblock %}
+
+{% block content %}
+    {% for acao in acoes %}
+        <p>{{acao.ticker}}</p>
+    {% endfor %}
+{% endblock %}
